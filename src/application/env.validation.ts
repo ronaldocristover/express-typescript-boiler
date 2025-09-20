@@ -20,11 +20,16 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW_MS: z.string().transform(Number).default('900000'),
   RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).default('100'),
 
+  // Trust Proxy Security Configuration
+  TRUST_PROXY: z.string().default('false'),
+  TRUSTED_PROXY_IPS: z.string().optional(),
+
   // CORS
   ALLOWED_ORIGINS: z.string().default('http://localhost:3000'),
 
   // Cache (Redis)
   REDIS_URL: z.string().optional(),
+  REDIS_KEY_PREFIX: z.string().optional(),
   CACHE_TTL_SECONDS: z.string().transform(Number).default('3600'),
 
   // Database Pool

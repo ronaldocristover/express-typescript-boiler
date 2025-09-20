@@ -5,6 +5,12 @@ import { env } from '../application/env.validation';
 class CacheService {
   private client: RedisClientType | null = null;
   private isConnected = false;
+  private keyPrefix: string;
+
+  constructor() {
+    // Initialize key prefix from environment variables
+    this.keyPrefix = env.REDIS_KEY_PREFIX || env.APP_NAME || 'default';
+  }
 
   async connect(): Promise<void> {
     if (this.client || !env.REDIS_URL) {
@@ -71,12 +77,13 @@ class CacheService {
     }
 
     try {
-      const data = await this.client.get(key);
+      const prefixedKey = this.getPrefixedKey(key);
+      const data = await this.client.get(prefixedKey);
       if (data) {
-        logger.debug('Cache hit for key:', key);
+        logger.debug('Cache hit for key:', key, 'prefixed:', prefixedKey);
         return JSON.parse(data) as T;
       }
-      logger.debug('Cache miss for key:', key);
+      logger.debug('Cache miss for key:', key, 'prefixed:', prefixedKey);
       return null;
     } catch (error) {
       logger.error('Redis get error:', error);
@@ -92,8 +99,9 @@ class CacheService {
 
     try {
       const ttl = ttlSeconds || env.CACHE_TTL_SECONDS;
-      await this.client.setEx(key, ttl, JSON.stringify(value));
-      logger.debug('Cache set for key:', key, 'TTL:', ttl);
+      const prefixedKey = this.getPrefixedKey(key);
+      await this.client.setEx(prefixedKey, ttl, JSON.stringify(value));
+      logger.debug('Cache set for key:', key, 'prefixed:', prefixedKey, 'TTL:', ttl);
       return true;
     } catch (error) {
       logger.error('Redis set error:', error);
@@ -108,8 +116,9 @@ class CacheService {
     }
 
     try {
-      const result = await this.client.del(key);
-      logger.debug('Cache delete for key:', key, 'Result:', result);
+      const prefixedKey = this.getPrefixedKey(key);
+      const result = await this.client.del(prefixedKey);
+      logger.debug('Cache delete for key:', key, 'prefixed:', prefixedKey, 'Result:', result);
       return result > 0;
     } catch (error) {
       logger.error('Redis delete error:', error);
@@ -124,13 +133,14 @@ class CacheService {
     }
 
     try {
-      const keys = await this.client.keys(pattern);
+      const prefixedPattern = this.getPrefixedKey(pattern);
+      const keys = await this.client.keys(prefixedPattern);
       if (keys.length === 0) {
         return 0;
       }
 
       const result = await this.client.del(keys);
-      logger.debug('Cache pattern delete:', pattern, 'Keys deleted:', result);
+      logger.debug('Cache pattern delete:', pattern, 'prefixed:', prefixedPattern, 'Keys deleted:', result);
       return result;
     } catch (error) {
       logger.error('Redis pattern delete error:', error);
@@ -144,7 +154,8 @@ class CacheService {
     }
 
     try {
-      const result = await this.client.exists(key);
+      const prefixedKey = this.getPrefixedKey(key);
+      const result = await this.client.exists(prefixedKey);
       return result === 1;
     } catch (error) {
       logger.error('Redis exists error:', error);
@@ -171,7 +182,18 @@ class CacheService {
     return this.isConnected && this.client !== null;
   }
 
-  // Cache key generators
+  // Helper method to add prefix to keys
+  private getPrefixedKey(key: string): string {
+    return `${this.keyPrefix}:${key}`;
+  }
+
+  // Get the current key prefix
+  getKeyPrefix(): string {
+    return this.keyPrefix || env.REDIS_KEY_PREFIX || env.APP_NAME || 'default';
+  }
+
+  // Legacy cache key generators (deprecated - use CacheKey utility instead)
+  // These methods are kept for backward compatibility but should be replaced
   generateUserKey(id: string): string {
     return `user:${id}`;
   }

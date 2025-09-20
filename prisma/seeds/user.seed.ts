@@ -14,9 +14,12 @@ export const randomUsers = async () => {
   const randomIndex = Math.floor(Math.random() * user.length);
   return user[randomIndex].id;
 };
-const users = Array.from({ length: 10 }).map(() => ({
+const users = Array.from({ length: 500 }).map(() => ({
   name: faker.person.fullName(),
   phone: faker.phone.number(), // Add phone property
+  email: faker.internet.email(),
+  password: faker.internet.password(),
+  is_active: faker.datatype.boolean(),
 }));
 
 export const createUserSeed = async () => {

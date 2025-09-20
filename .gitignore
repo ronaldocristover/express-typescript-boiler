@@ -11,10 +11,21 @@ node_modules/
 dist/
 build/
 
-# Environment variables
+# Environment variables - SECURITY CRITICAL!
 .env
 .env.local
 .env.*.local
+.env.docker
+.env.production
+.env.staging
+
+# Secrets files - NEVER COMMIT!
+.env.secrets
+secrets.json
+*.key
+*.pem
+*.p12
+*.pfx
 
 # Logs
 *.log

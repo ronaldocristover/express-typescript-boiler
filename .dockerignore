@@ -5,7 +5,6 @@ yarn-debug.log*
 yarn-error.log*
 
 # Development files
-src/
 test/
 tests/
 __tests__/
@@ -83,3 +82,12 @@ devDependencies/
 
 # Claude assistant
 .claude/
+
+# Docker files
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Build output (will be generated in container)
+dist/
+build/

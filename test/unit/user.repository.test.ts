@@ -45,18 +45,19 @@ describe('UserRepository', () => {
     ];
 
     it('should return cached users when cache hit', async () => {
-      mockCacheService.generateUsersListKey.mockReturnValue('users:list:all');
+      // The new cache key includes filters
+      const expectedCacheKey = 'users:list:all:is_active:true';
       mockCacheService.get.mockResolvedValue(mockUsers);
 
       const result = await userRepository.findAll();
 
       expect(result).toEqual(mockUsers);
-      expect(mockCacheService.get).toHaveBeenCalledWith('users:list:all');
+      expect(mockCacheService.get).toHaveBeenCalledWith(expectedCacheKey);
       expect(mockPrisma.user.findMany).not.toHaveBeenCalled();
     });
 
     it('should fetch from database and cache when cache miss', async () => {
-      mockCacheService.generateUsersListKey.mockReturnValue('users:list:all');
+      const expectedCacheKey = 'users:list:all:is_active:true';
       mockCacheService.get.mockResolvedValue(null);
       mockPrisma.user.findMany.mockResolvedValue(mockUsers);
 
@@ -75,7 +76,7 @@ describe('UserRepository', () => {
         where: { is_active: true },
         orderBy: { created_at: 'desc' }
       });
-      expect(mockCacheService.set).toHaveBeenCalledWith('users:list:all', mockUsers, 300);
+      expect(mockCacheService.set).toHaveBeenCalledWith(expectedCacheKey, mockUsers, 300);
     });
 
     it('should handle pagination correctly', async () => {

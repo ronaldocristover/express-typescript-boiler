@@ -18,6 +18,7 @@ Redis caching has been implemented to improve API performance by caching frequen
 A centralized cache service that provides:
 
 - **Connection management** with automatic reconnection
+- **Service-based key prefixing** for multi-service Redis sharing
 - **Key generation** with consistent naming patterns
 - **TTL support** with configurable expiration times
 - **Pattern-based deletion** for bulk cache invalidation
@@ -41,10 +42,16 @@ Enhanced user repository with caching for:
 - **Automatic invalidation** on create/update/delete
 
 #### Cache Keys:
-- `user:{id}` - Individual user by ID
-- `user:email:{email}` - User by email address
-- `users:list:page:{page}:limit:{limit}` - Paginated user lists
-- `users:list:all` - Complete user list
+All cache keys are automatically prefixed with the service name for multi-service Redis sharing:
+- `{service-prefix}:user:{id}` - Individual user by ID
+- `{service-prefix}:user:email:{email}` - User by email address
+- `{service-prefix}:users:list:page:{page}:limit:{limit}` - Paginated user lists
+- `{service-prefix}:users:list:all` - Complete user list
+
+Example with service prefix "service-a":
+- `service-a:user:123` - Individual user by ID
+- `service-a:user:email:john@example.com` - User by email
+- `service-a:users:list:page:1:limit:10` - Paginated list
 
 ### 3. Cache Middleware (`src/middlewares/cache.middleware.ts`)
 
@@ -73,8 +80,11 @@ Add to your `.env` file:
 ```env
 # Redis Configuration
 REDIS_URL=redis://localhost:6379
+REDIS_KEY_PREFIX=service-a
 CACHE_TTL_SECONDS=3600
 ```
+
+The `REDIS_KEY_PREFIX` is used to namespace all cache keys for this service. If not specified, it falls back to the `APP_NAME` environment variable or "default".
 
 ### Optional Redis Setup
 

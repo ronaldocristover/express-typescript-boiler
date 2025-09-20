@@ -1,32 +1,38 @@
 import prisma from "../application/database";
-import { CreateUserDTO, UpdateUserDTO, PaginationParams, UserResponse } from "../types/user.types";
+import {
+  CreateUserDTO,
+  UpdateUserDTO,
+  PaginationParams,
+  UserResponse,
+} from "../types/user.types";
 import { cacheService } from "../services/cache.service";
 import { logger } from "../application/logging";
+import { CacheKey } from "../utils/cache-key.util";
 
 class UserRepository {
   private userModel = prisma.user;
 
   async findAll(pagination?: PaginationParams): Promise<UserResponse[]> {
-    // Generate cache key
-    const cacheKey = cacheService.generateUsersListKey(pagination?.page, pagination?.limit);
+    // Generate cache key using generic utility
+    const cacheKey = CacheKey.list("users", pagination, { is_active: true });
 
     // Try to get from cache first
     const cachedResult = await cacheService.get<UserResponse[]>(cacheKey);
     if (cachedResult) {
-      logger.debug('Cache hit for users list', { cacheKey });
+      logger.debug("Cache hit for users list", { cacheKey });
       return cachedResult;
     }
 
     // If not in cache, fetch from database
     const where = { is_active: true };
-    const orderBy = { created_at: 'desc' as const };
+    const orderBy = { created_at: "desc" as const };
     const select = {
       id: true,
       name: true,
       email: true,
       phone: true,
       is_active: true,
-      created_at: true
+      created_at: true,
     };
 
     let result: UserResponse[];
@@ -38,31 +44,31 @@ class UserRepository {
         where,
         orderBy,
         skip,
-        take: pagination.limit
+        take: pagination.limit,
       });
     } else {
       result = await this.userModel.findMany({
         select,
         where,
-        orderBy
+        orderBy,
       });
     }
 
     // Cache the result
     await cacheService.set(cacheKey, result, 300); // Cache for 5 minutes
-    logger.debug('Cached users list', { cacheKey, count: result.length });
+    logger.debug("Cached users list", { cacheKey, count: result.length });
 
     return result;
   }
 
   async findById(id: string): Promise<UserResponse | null> {
-    // Generate cache key
-    const cacheKey = cacheService.generateUserKey(id);
+    // Generate cache key using generic utility
+    const cacheKey = CacheKey.byId("user", id);
 
     // Try to get from cache first
     const cachedResult = await cacheService.get<UserResponse>(cacheKey);
     if (cachedResult) {
-      logger.debug('Cache hit for user', { userId: id, cacheKey });
+      logger.debug("Cache hit for user", { userId: id, cacheKey });
       return cachedResult;
     }
 
@@ -75,27 +81,27 @@ class UserRepository {
         email: true,
         phone: true,
         is_active: true,
-        created_at: true
-      }
+        created_at: true,
+      },
     });
 
     if (result) {
       // Cache the result
       await cacheService.set(cacheKey, result, 900); // Cache for 15 minutes
-      logger.debug('Cached user', { userId: id, cacheKey });
+      logger.debug("Cached user", { userId: id, cacheKey });
     }
 
     return result;
   }
 
   async findByEmail(email: string): Promise<UserResponse | null> {
-    // Generate cache key
-    const cacheKey = cacheService.generateUserByEmailKey(email);
+    // Generate cache key using generic utility
+    const cacheKey = CacheKey.byField("user", "email", email);
 
     // Try to get from cache first
     const cachedResult = await cacheService.get<UserResponse>(cacheKey);
     if (cachedResult) {
-      logger.debug('Cache hit for user by email', { email, cacheKey });
+      logger.debug("Cache hit for user by email", { email, cacheKey });
       return cachedResult;
     }
 
@@ -108,15 +114,19 @@ class UserRepository {
         email: true,
         phone: true,
         is_active: true,
-        created_at: true
-      }
+        created_at: true,
+      },
     });
 
     if (result) {
       // Cache the result with multiple keys for different access patterns
       await cacheService.set(cacheKey, result, 900); // Cache for 15 minutes
-      await cacheService.set(cacheService.generateUserKey(result.id), result, 900);
-      logger.debug('Cached user by email', { email, userId: result.id, cacheKey });
+      await cacheService.set(CacheKey.byId("user", result.id), result, 900);
+      logger.debug("Cached user by email", {
+        email,
+        userId: result.id,
+        cacheKey,
+      });
     }
 
     return result;
@@ -131,13 +141,15 @@ class UserRepository {
         email: true,
         phone: true,
         is_active: true,
-        created_at: true
-      }
+        created_at: true,
+      },
     });
 
     // Invalidate users list cache when new user is created
     await this.invalidateUsersListCache();
-    logger.debug('Cache invalidated after user creation', { userId: result.id });
+    logger.debug("Cache invalidated after user creation", {
+      userId: result.id,
+    });
 
     return result;
   }
@@ -146,7 +158,7 @@ class UserRepository {
     // Get current user data to invalidate email-based cache if email is changing
     const currentUser = await this.userModel.findUnique({
       where: { id },
-      select: { email: true }
+      select: { email: true },
     });
 
     const result = await this.userModel.update({
@@ -158,8 +170,8 @@ class UserRepository {
         email: true,
         phone: true,
         is_active: true,
-        created_at: true
-      }
+        created_at: true,
+      },
     });
 
     // Invalidate user-specific cache
@@ -168,7 +180,7 @@ class UserRepository {
     // Invalidate users list cache since user data changed
     await this.invalidateUsersListCache();
 
-    logger.debug('Cache invalidated after user update', { userId: id });
+    logger.debug("Cache invalidated after user update", { userId: id });
 
     return result;
   }
@@ -177,7 +189,7 @@ class UserRepository {
     // Get user data before deletion to invalidate email-based cache
     const userToDelete = await this.userModel.findUnique({
       where: { id },
-      select: { email: true }
+      select: { email: true },
     });
 
     const result = await this.userModel.delete({ where: { id } });
@@ -190,7 +202,7 @@ class UserRepository {
     // Invalidate users list cache since user was deleted
     await this.invalidateUsersListCache();
 
-    logger.debug('Cache invalidated after user deletion', { userId: id });
+    logger.debug("Cache invalidated after user deletion", { userId: id });
 
     return result;
   }
@@ -198,26 +210,34 @@ class UserRepository {
   async count(): Promise<number> {
     return this.userModel.count({
       where: {
-        is_active: true
-      }
+        is_active: true,
+      },
     });
   }
 
   // Cache invalidation helper methods
-  private async invalidateUserCache(userId: string, oldEmail?: string, newEmail?: string): Promise<void> {
+  private async invalidateUserCache(
+    userId: string,
+    oldEmail?: string,
+    newEmail?: string
+  ): Promise<void> {
     const promises: Promise<boolean>[] = [];
 
     // Invalidate user ID-based cache
-    promises.push(cacheService.delete(cacheService.generateUserKey(userId)));
+    promises.push(cacheService.delete(CacheKey.byId("user", userId)));
 
     // Invalidate old email-based cache if provided
     if (oldEmail) {
-      promises.push(cacheService.delete(cacheService.generateUserByEmailKey(oldEmail)));
+      promises.push(
+        cacheService.delete(CacheKey.byField("user", "email", oldEmail))
+      );
     }
 
     // Invalidate new email-based cache if different from old email
     if (newEmail && newEmail !== oldEmail) {
-      promises.push(cacheService.delete(cacheService.generateUserByEmailKey(newEmail)));
+      promises.push(
+        cacheService.delete(CacheKey.byField("user", "email", newEmail))
+      );
     }
 
     await Promise.all(promises);
@@ -225,19 +245,19 @@ class UserRepository {
 
   private async invalidateUsersListCache(): Promise<void> {
     // Invalidate all users list cache patterns
-    await cacheService.deletePattern('users:list:*');
+    await cacheService.deletePattern(CacheKey.pattern("users", "list:*"));
   }
 
   // Cache management methods
   async clearUserCache(userId: string): Promise<void> {
-    await cacheService.delete(cacheService.generateUserKey(userId));
-    logger.debug('Cleared cache for user', { userId });
+    await cacheService.delete(CacheKey.byId("user", userId));
+    logger.debug("Cleared cache for user", { userId });
   }
 
   async clearAllUsersCache(): Promise<void> {
-    await cacheService.deletePattern('user:*');
-    await cacheService.deletePattern('users:*');
-    logger.info('Cleared all users cache');
+    await cacheService.deletePattern(CacheKey.pattern("user"));
+    await cacheService.deletePattern(CacheKey.pattern("users"));
+    logger.info("Cleared all users cache");
   }
 }
 
