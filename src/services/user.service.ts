@@ -53,99 +53,132 @@ class UserService {
   }
 
   async create(data: CreateUserDTO): Promise<UserResponse> {
-    // Check if email already exists
-    const existingUser = await userRepository.findByEmail(data.email);
-    if (existingUser) {
-      throw new ResponseError(409, "Email already exists");
-    }
-
-    // Hash password
-    const saltRounds = 12;
-    const hashedPassword = await bcrypt.hash(data.password, saltRounds);
-
-    const userToCreate = {
-      ...data,
-      password: hashedPassword,
-    };
-
-    const newUser = await userRepository.create(userToCreate);
-
-    // Publish user created event
     try {
-      await messagePublisher.publishUserEvent("created", newUser.id, {
-        email: newUser.email,
-        name: newUser.name,
-        createdAt: newUser.created_at,
-      });
-    } catch (error) {
-      logger.error("Failed to publish user created event:", error, {
-        userId: newUser.id,
-      });
-    }
+      // Check if email already exists
+      const existingUser = await userRepository.findByEmail(data.email);
+      if (existingUser) {
+        throw new ResponseError(409, "Email already exists");
+      }
 
-    return newUser;
+      // Hash password
+      const saltRounds = 12;
+      const hashedPassword = await bcrypt.hash(data.password, saltRounds);
+
+      const userToCreate = {
+        ...data,
+        password: hashedPassword,
+      };
+
+      const newUser = await userRepository.create(userToCreate);
+
+      // Publish user created event
+      try {
+        await messagePublisher.publishUserEvent("created", newUser.id, {
+          email: newUser.email,
+          name: newUser.name,
+          createdAt: newUser.created_at,
+        });
+      } catch (error) {
+        logger.error("Failed to publish user created event:", error, {
+          userId: newUser.id,
+        });
+      }
+
+      return newUser;
+    } catch (error) {
+      // Log the error but don't expose internal details
+      logger.error("Error creating user", {
+        email: data.email,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+
+      // Re-throw ResponseError as-is, let error middleware handle Prisma errors
+      throw error;
+    }
   }
 
   async update(id: string, data: UpdateUserDTO): Promise<UserResponse> {
-    // Check if user exists
-    const existingUser = await userRepository.findById(id);
-    if (!existingUser) {
-      throw new ResponseError(404, "User not found");
-    }
-
-    // If email is being updated, check if it's already taken by another user
-    if (data.email && data.email !== existingUser.email) {
-      const emailExists = await userRepository.findByEmail(data.email);
-      if (emailExists) {
-        throw new ResponseError(409, "Email already exists");
-      }
-    }
-
-    // Hash password if provided
-    const updateData = { ...data };
-    if (data.password) {
-      const saltRounds = 12;
-      updateData.password = await bcrypt.hash(data.password, saltRounds);
-    }
-
-    const updatedUser = await userRepository.update(id, updateData);
-
-    // Publish user updated event
     try {
-      await messagePublisher.publishUserEvent("updated", updatedUser.id, {
-        email: updatedUser.email,
-        name: updatedUser.name,
-        updated_at: updatedUser.updated_at,
-        changes: Object.keys(data),
-      });
-    } catch (error) {
-      logger.error("Failed to publish user updated event:", error, {
-        userId: updatedUser.id,
-      });
-    }
+      // Check if user exists
+      const existingUser = await userRepository.findById(id);
+      if (!existingUser) {
+        throw new ResponseError(404, "User not found");
+      }
 
-    return updatedUser;
+      // If email is being updated, check if it's already taken by another user
+      if (data.email && data.email !== existingUser.email) {
+        const emailExists = await userRepository.findByEmail(data.email);
+        if (emailExists) {
+          throw new ResponseError(409, "Email already exists");
+        }
+      }
+
+      // Hash password if provided
+      const updateData = { ...data };
+      if (data.password) {
+        const saltRounds = 12;
+        updateData.password = await bcrypt.hash(data.password, saltRounds);
+      }
+
+      const updatedUser = await userRepository.update(id, updateData);
+
+      // Publish user updated event
+      try {
+        await messagePublisher.publishUserEvent("updated", updatedUser.id, {
+          email: updatedUser.email,
+          name: updatedUser.name,
+          updated_at: updatedUser.updated_at,
+          changes: Object.keys(data),
+        });
+      } catch (error) {
+        logger.error("Failed to publish user updated event:", error, {
+          userId: updatedUser.id,
+        });
+      }
+
+      return updatedUser;
+    } catch (error) {
+      // Log the error but don't expose internal details
+      logger.error("Error updating user", {
+        userId: id,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+
+      // Re-throw ResponseError as-is, let error middleware handle Prisma errors
+      throw error;
+    }
   }
 
   async remove(id: string): Promise<void> {
-    const user = await userRepository.findById(id);
-    if (!user) {
-      throw new ResponseError(404, "User not found");
-    }
-
-    await userRepository.delete(id);
-
-    // Publish user deleted event
     try {
-      await messagePublisher.publishUserEvent("deleted", user.id, {
-        email: user.email,
-        name: user.name,
-        deletedAt: new Date(),
-      });
+      const user = await userRepository.findById(id);
+      if (!user) {
+        throw new ResponseError(404, "User not found");
+      }
+
+      await userRepository.delete(id);
+
+      // Publish user deleted event
+      try {
+        await messagePublisher.publishUserEvent("deleted", user.id, {
+          email: user.email,
+          name: user.name,
+          deletedAt: new Date(),
+        });
+      } catch (error) {
+        logger.error("Failed to publish user deleted event:", error, {
+          userId: user.id,
+        });
+      }
     } catch (error) {
-      logger.error("Failed to publish user deleted event:", error, {
-        userId: user.id,
+      // Log the error but don't expose internal details
+      logger.error("Error deleting user", {
+        userId: id,
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
+
+      // Re-throw ResponseError as-is, let error middleware handle Prisma errors
+      throw error;
     }
   }
 }

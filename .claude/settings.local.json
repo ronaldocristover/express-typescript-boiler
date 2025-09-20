@@ -17,7 +17,9 @@
       "Bash(pkill:*)",
       "Bash(npm test:*)",
       "WebFetch(domain:express-rate-limit.github.io)",
-      "Bash(timeout 10s npm run dev)"
+      "Bash(timeout 10s npm run dev)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)"
     ],
     "deny": [],
     "ask": []
