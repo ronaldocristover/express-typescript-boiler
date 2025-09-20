@@ -4,9 +4,6 @@ import { logger } from "./application/logging";
 import compression from "compression";
 
 import userRoutes from "./routes/user.route";
-import groupRoutes from "./routes/group.route";
-import paymentRoutes from "./routes/payment.route";
-import { stripeRouter } from "./routes/stripe.route";
 import cors from "cors";
 
 const app = express();
@@ -17,9 +14,7 @@ app.use(express.json());
 app.set("trust proxy", true);
 
 app.use("/api/users", userRoutes);
-app.use("/api/groups", groupRoutes);
-app.use("/api/payments", paymentRoutes);
-app.use("/api/stripe", stripeRouter);
+
 // app.use(errorMiddleware);
 
 app.get("/", (req, res) => {
