@@ -2,6 +2,11 @@ import { PrismaClient } from "@prisma/client";
 import { logger } from "./logging";
 
 const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL + "?connection_limit=10&pool_timeout=20&socket_timeout=60"
+    }
+  },
   log: [
     {
       emit: "event",

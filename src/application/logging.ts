@@ -1,21 +1,47 @@
 import winston from "winston";
 import LokiTransport from "winston-loki";
-const { combine, timestamp, json, errors } = winston.format;
+import { env } from "./env.validation";
 
-// Configure Winston logger with Loki transport
-export const logger = winston.createLogger({
-  level: "info",
-  format: combine(timestamp(), errors({ stack: true }), json()),
-  transports: [
-    new winston.transports.Console(),
+const { combine, timestamp, json, errors, colorize, simple } = winston.format;
+
+// Create transports array based on environment
+const transports: winston.transport[] = [
+  new winston.transports.Console({
+    format: env.NODE_ENV === 'development'
+      ? combine(colorize(), simple())
+      : combine(timestamp(), json())
+  })
+];
+
+// Add Loki transport if host is configured
+if (env.LOKI_HOST) {
+  transports.push(
     new LokiTransport({
-      host: process.env.LOKI_HOST || "http://127.0.0.1:3100",
+      host: env.LOKI_HOST,
       labels: {
-        app: process.env.APP_NAME || "service-app",
-        env: process.env.NODE_ENV || "development",
+        app: env.APP_NAME,
+        env: env.NODE_ENV,
+        hostname: env.HOSTNAME
       },
       json: true,
       format: winston.format.json(),
-    }),
-  ],
+    })
+  );
+}
+
+// Configure Winston logger with structured logging
+export const logger = winston.createLogger({
+  level: env.LOG_LEVEL,
+  format: combine(
+    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    errors({ stack: true }),
+    json()
+  ),
+  defaultMeta: { service: env.APP_NAME },
+  transports,
 });
+
+// Add request correlation to logger
+export const createLoggerWithCorrelation = (correlationId: string) => {
+  return logger.child({ correlationId });
+};

@@ -1,15 +1,19 @@
 import express from "express";
-// import { authMiddleware } from "../middleware/auth-middleware";
+import { validateRequest, validateParams, validateQuery } from "../middlewares/validation.middleware";
+import { UserValidation } from "../validations/user-validation";
 import userController from "../controllers/user.controller";
 
 const router = express.Router();
-// router.use(authMiddleware);
 
-// User API
-router.get("/", userController.findAll);
-router.get("/:id", userController.find);
-router.post("/", userController.create);
-router.put("/:id", userController.update);
-router.delete("/:id", userController.remove);
+// User API routes
+router.get("/", validateQuery(UserValidation.PAGINATION), userController.findAll);
+router.get("/:id", validateParams(UserValidation.ID_PARAM), userController.find);
+router.post("/", validateRequest(UserValidation.CREATE), userController.create);
+router.put("/:id",
+  validateParams(UserValidation.ID_PARAM),
+  validateRequest(UserValidation.UPDATE),
+  userController.update
+);
+router.delete("/:id", validateParams(UserValidation.ID_PARAM), userController.remove);
 
 export default router;

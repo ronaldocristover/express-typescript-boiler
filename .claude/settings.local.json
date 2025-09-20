@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git rm:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npm audit:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm test)",
+      "Bash(node:*)",
+      "Bash(redis-cli:*)",
+      "Bash(brew services:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
