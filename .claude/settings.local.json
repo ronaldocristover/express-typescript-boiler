@@ -10,7 +10,11 @@
       "Bash(npm test)",
       "Bash(node:*)",
       "Bash(redis-cli:*)",
-      "Bash(brew services:*)"
+      "Bash(brew services:*)",
+      "Bash(npm run test:unit:*)",
+      "Bash(npm run test:e2e:*)",
+      "Bash(npm run dev:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
     "ask": []

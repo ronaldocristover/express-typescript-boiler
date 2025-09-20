@@ -1,8 +1,69 @@
+# IDEs
 .idea
-node_modules
-dist
+.vscode/
+*.swp
+*.swo
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Environment variables
 .env
+.env.local
+.env.*.local
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# Testing
 coverage/
+*.coverage
+.nyc_output
+
+# OS
 .DS_Store
-.env
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Package managers
+.npm
+.yarn-integrity
+yarn.lock
+
+# Documentation (development only)
+*.md.backup
+docs/
+
+# Test databases
+*.db
+*.sqlite
+*.sqlite3
+test.db*
+
+# Prisma
+prisma/dev.db
+prisma/*.db
+
+# PM2
+ecosystem.config.js
+
+# Backup files
+*.backup
+*.bak

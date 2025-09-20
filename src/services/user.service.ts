@@ -1,10 +1,20 @@
 import userRepository from "../repositories/user.repository";
-import { CreateUserDTO, UpdateUserDTO, UserResponse, PaginationParams, PaginationMeta } from "../types/user.types";
+import {
+  CreateUserDTO,
+  UpdateUserDTO,
+  UserResponse,
+  PaginationParams,
+  PaginationMeta,
+} from "../types/user.types";
 import { ResponseError } from "../errors/response-error";
 import bcrypt from "bcrypt";
+import { messagePublisher } from "./message-publisher.service";
+import { logger } from "../application/logging";
 
 class UserService {
-  async findAll(pagination?: PaginationParams): Promise<{ users: UserResponse[], meta?: PaginationMeta }> {
+  async findAll(
+    pagination?: PaginationParams
+  ): Promise<{ users: UserResponse[]; meta?: PaginationMeta }> {
     if (pagination) {
       // Validate pagination parameters
       if (pagination.limit < 1 || pagination.limit > 100) {
@@ -16,7 +26,7 @@ class UserService {
 
       const [users, total] = await Promise.all([
         userRepository.findAll(pagination),
-        userRepository.count()
+        userRepository.count(),
       ]);
 
       const totalPages = Math.ceil(total / pagination.limit);
@@ -24,7 +34,7 @@ class UserService {
         page: pagination.page,
         limit: pagination.limit,
         total,
-        totalPages
+        totalPages,
       };
 
       return { users, meta };
@@ -55,10 +65,25 @@ class UserService {
 
     const userToCreate = {
       ...data,
-      password: hashedPassword
+      password: hashedPassword,
     };
 
-    return userRepository.create(userToCreate);
+    const newUser = await userRepository.create(userToCreate);
+
+    // Publish user created event
+    try {
+      await messagePublisher.publishUserEvent("created", newUser.id, {
+        email: newUser.email,
+        name: newUser.name,
+        createdAt: newUser.created_at,
+      });
+    } catch (error) {
+      logger.error("Failed to publish user created event:", error, {
+        userId: newUser.id,
+      });
+    }
+
+    return newUser;
   }
 
   async update(id: string, data: UpdateUserDTO): Promise<UserResponse> {
@@ -83,7 +108,23 @@ class UserService {
       updateData.password = await bcrypt.hash(data.password, saltRounds);
     }
 
-    return userRepository.update(id, updateData);
+    const updatedUser = await userRepository.update(id, updateData);
+
+    // Publish user updated event
+    try {
+      await messagePublisher.publishUserEvent("updated", updatedUser.id, {
+        email: updatedUser.email,
+        name: updatedUser.name,
+        updated_at: updatedUser.updated_at,
+        changes: Object.keys(data),
+      });
+    } catch (error) {
+      logger.error("Failed to publish user updated event:", error, {
+        userId: updatedUser.id,
+      });
+    }
+
+    return updatedUser;
   }
 
   async remove(id: string): Promise<void> {
@@ -93,6 +134,19 @@ class UserService {
     }
 
     await userRepository.delete(id);
+
+    // Publish user deleted event
+    try {
+      await messagePublisher.publishUserEvent("deleted", user.id, {
+        email: user.email,
+        name: user.name,
+        deletedAt: new Date(),
+      });
+    } catch (error) {
+      logger.error("Failed to publish user deleted event:", error, {
+        userId: user.id,
+      });
+    }
   }
 }
 

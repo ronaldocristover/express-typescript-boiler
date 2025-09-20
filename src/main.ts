@@ -4,6 +4,9 @@ import app from "./app";
 import { logger } from "./application/logging";
 import { env } from "./application/env.validation";
 import { cacheService } from "./services/cache.service";
+import { rabbitMQ } from "./application/rabbitmq";
+import { messageConsumer } from "./services/message-consumer.service";
+import { setupMessageHandlers } from "./handlers/message.handlers";
 
 // Load environment variables first
 config({ path: `.env` });
@@ -24,6 +27,23 @@ async function main() {
       }
     } else {
       logger.info("Redis URL not configured, running without cache.");
+    }
+
+    // Initialize RabbitMQ connection
+    try {
+      await rabbitMQ.connect();
+      logger.info("Connected to RabbitMQ successfully.");
+
+      // Setup message handlers
+      setupMessageHandlers();
+
+      // Setup message consumers
+      await messageConsumer.setupConsumer('user_events', ['user.*']);
+      await messageConsumer.setupConsumer('system_events', ['system.*']);
+      await messageConsumer.setupConsumer('notifications', ['notification.*']);
+
+    } catch (error) {
+      logger.warn("Failed to connect to RabbitMQ, continuing without message broker:", error);
     }
 
     // Start server with configured port
@@ -53,6 +73,11 @@ async function main() {
           // Disconnect Redis if connected
           if (cacheService.isReady()) {
             await cacheService.disconnect();
+          }
+
+          // Disconnect RabbitMQ if connected
+          if (rabbitMQ.isReady()) {
+            await rabbitMQ.disconnect();
           }
 
           process.exit(0);

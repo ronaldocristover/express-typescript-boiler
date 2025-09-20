@@ -30,6 +30,11 @@ const envSchema = z.object({
   // Database Pool
   DB_POOL_MAX: z.string().transform(Number).default('10'),
   DB_POOL_TIMEOUT: z.string().transform(Number).default('20000'),
+
+  // RabbitMQ configuration
+  RABBITMQ_URL: z.string().default('amqp://localhost'),
+  RABBITMQ_EXCHANGE: z.string().default('app_exchange'),
+  RABBITMQ_QUEUE_PREFIX: z.string().default('app_queue'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

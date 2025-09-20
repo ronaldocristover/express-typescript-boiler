@@ -10,6 +10,7 @@ import helmet from "helmet";
 import userRoutes from "./routes/user.route";
 import healthRoutes from "./routes/health.route";
 import cacheRoutes from "./routes/cache.route";
+import messageRoutes from "./routes/message.route";
 import cors from "cors";
 
 const app = express();
@@ -42,6 +43,7 @@ app.use("/cache", apiLimiter, cacheRoutes);
 
 // API routes with rate limiting
 app.use("/api/users", apiLimiter, userRoutes);
+app.use("/api/messages", apiLimiter, messageRoutes);
 
 app.use(errorMiddleware);
 
